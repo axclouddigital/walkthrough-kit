@@ -13,10 +13,10 @@ Extracted from Truckbites (`e2e/walkthrough/`), which is the reference project.
 ## Install
 
 ```bash
-npm install -D "git+https://github.com/axclouddigital/walkthrough-kit.git#v0.1.0"
+npm install -D "github:axclouddigital/walkthrough-kit#v0.1.0"
 ```
 
-The package builds itself on install (`prepare`). With pnpm 10, allow that build: add `walkthrough-kit` to `pnpm.onlyBuiltDependencies`.
+The repository is private: the machine needs GitHub access to it (npm fetches it over SSH), and a CI job that runs `npm ci` needs a token or deploy key. The package builds itself on install (`prepare`). With pnpm 10, allow that build: add `walkthrough-kit` to `pnpm.onlyBuiltDependencies`.
 
 ## What the project supplies
 
