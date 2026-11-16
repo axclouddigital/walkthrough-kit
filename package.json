@@ -1,6 +1,6 @@
 {
   "name": "walkthrough-kit",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Records a web app's flows with Playwright at watching speed and composes each into a captioned MP4, a PDF of the steps and an index page.",
   "type": "module",
@@ -10,8 +10,12 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
-  "engines": { "node": ">=20" },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
