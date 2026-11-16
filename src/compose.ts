@@ -18,12 +18,16 @@ import { chromium } from "@playwright/test";
 import type { FlowRun } from "./harness.js";
 import type { Resolved } from "./settings.js";
 import { BEZEL, CAPTION, H, LABEL, TOP, W, frameHtml, introHtml, pdfHtml, type FlowManifest, type Layout } from "./templates.js";
+import { VOICE_LEAD } from "./voice.js";
 
 const run = promisify(execFile);
 
 const FPS = 25;
-/** Seconds the title card stays up. */
+/** Seconds the title card stays up (longer when the spoken title needs it). */
 const INTRO = 3.5;
+/** Seconds into the title card that the spoken title starts, and the pause after it. */
+const INTRO_VOICE_LEAD = 0.4;
+const INTRO_VOICE_TAIL = 0.9;
 const MARGIN = 36;
 const GAP = 34;
 const PANEL_MIN = 430;
@@ -73,7 +77,8 @@ export async function compose(kit: Resolved, flow: FlowRun): Promise<FlowManifes
 
   // One timeline in seconds: the title card, then the recording from the first screen's start.
   const origin = Math.min(...actors.map((actor) => actor.startedAt));
-  const at = (wallClock: number) => INTRO + (wallClock - origin) / 1000;
+  const introSec = Math.max(INTRO, flow.introVoice ? INTRO_VOICE_LEAD + flow.introVoice.seconds + INTRO_VOICE_TAIL : 0);
+  const at = (wallClock: number) => introSec + (wallClock - origin) / 1000;
   const end = at(flow.endedAt);
   const cuts = flow.cuts
     .map(([from, to]): [number, number] => [at(from), Math.min(at(to), end)])
@@ -81,6 +86,11 @@ export async function compose(kit: Resolved, flow: FlowRun): Promise<FlowManifes
     .sort((a, b) => a[0] - b[0]);
   /** Where a moment of the timeline lands once the cuts are out. */
   const kept = (t: number) => t - cuts.reduce((sum, [from, to]) => sum + Math.max(0, Math.min(t, to) - from), 0);
+  // The spoken track: the title over the title card, then each step's line as its caption goes up.
+  const spoken = [
+    ...(flow.introVoice ? [{ file: flow.introVoice.file, atSec: INTRO_VOICE_LEAD }] : []),
+    ...steps.flatMap((step) => (step.voice ? [{ file: step.voice.file, atSec: kept(at(step.startedAt)) + VOICE_LEAD }] : [])),
+  ];
 
   const manifest: FlowManifest = {
     id: spec.id,
@@ -94,6 +104,7 @@ export async function compose(kit: Resolved, flow: FlowRun): Promise<FlowManifes
     video: `${spec.id}.mp4`,
     pdf: `${spec.id}.pdf`,
     poster: "poster.jpg",
+    narrated: spoken.length > 0,
     actors: actors.map((actor) => ({ slug: actor.slug, label: actor.label, device: actor.device.label, ...actor.device.viewport })),
     steps: steps.map((step, i) => ({ n: i + 1, caption: step.caption, note: step.note, atSec: kept(at(step.startedAt)), shown: step.shown, shots: step.shots })),
   };
@@ -116,7 +127,7 @@ export async function compose(kit: Resolved, flow: FlowRun): Promise<FlowManifes
 
     // Each still shows from its step's start to the next one's; boundaries are rounded to whole
     // frames from the timeline, never summed, so the captions can't drift from the recordings.
-    const bounds = [0, INTRO, ...steps.map((step) => at(step.startedAt)), end].map((t) => Math.round(t * FPS));
+    const bounds = [0, introSec, ...steps.map((step) => at(step.startedAt)), end].map((t) => Math.round(t * FPS));
     const stills = [intro, frames[0], ...frames]
       .map((file, i) => ({ file, frames: bounds[i + 1] - bounds[i] }))
       .filter((segment) => segment.frames > 0);
@@ -139,8 +150,18 @@ export async function compose(kit: Resolved, flow: FlowRun): Promise<FlowManifes
     // The recordings run on a moment past the last step (their screens close afterwards): stop with the stills.
     const dropped = cuts.map(([from, to]) => `gte(t,${from.toFixed(3)})*lt(t,${to.toFixed(3)})`).join("+");
     graph.push(`[${last}]trim=end_frame=${bounds.at(-1)},select='not(${dropped || 0})',setpts=N/(${FPS}*TB)[out]`);
+    const sound: string[] = [];
+    if (spoken.length > 0) {
+      spoken.forEach((clip, i) => {
+        inputs.push("-i", clip.file);
+        graph.push(`[${stills.length + actors.length + i}:a]aresample=44100,adelay=${Math.round(clip.atSec * 1000)}:all=1[n${i}]`);
+      });
+      graph.push(`${spoken.map((_, i) => `[n${i}]`).join("")}amix=inputs=${spoken.length}:normalize=0:dropout_transition=0,apad[sound]`);
+      // The padded track has no end of its own: stop with the picture.
+      sound.push("-map", "[sound]", "-c:a", "aac", "-b:a", "160k", "-t", manifest.durationSec.toFixed(3));
+    }
     const video = join(outDir, manifest.video);
-    await ffmpeg([...inputs, "-filter_complex", graph.join(";"), "-map", "[out]", "-r", String(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", video]);
+    await ffmpeg([...inputs, "-filter_complex", graph.join(";"), "-map", "[out]", ...sound, "-r", String(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", video]);
     // The preview: just before the third step, when the screens have something on them.
     const posterAt = (manifest.steps[2]?.atSec ?? manifest.durationSec) - 0.2;
     await ffmpeg(["-ss", posterAt.toFixed(2), "-i", video, "-frames:v", "1", "-q:v", "3", join(outDir, manifest.poster)]);

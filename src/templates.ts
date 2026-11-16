@@ -38,6 +38,8 @@ export interface FlowManifest {
   video: string;
   pdf: string;
   poster: string;
+  /** The video has a spoken track. Absent in recordings made before the voiceover existed. */
+  narrated?: boolean;
   actors: { slug: string; label: string; device: string; width: number; height: number }[];
   steps: { n: number; caption: string; note: string | null; atSec: number; shown: string[]; shots: { actor: string; file: string }[] }[];
 }
@@ -203,7 +205,7 @@ export function indexHtml(kit: Resolved, flows: FlowManifest[]): string {
   const card = (flow: FlowManifest) => `<article id="${esc(flow.id)}">
 <video controls preload="none" poster="${esc(`${flow.id}/${flow.poster}`)}" src="${esc(`${flow.id}/${flow.video}`)}"></video>
 <div class="about"><h3>${esc(flow.title)}</h3><p>${esc(flow.summary)}</p>
-<p class="meta">${clock(flow.durationSec)} · ${flow.steps.length} steps · ${esc(flow.actors.map((a) => `${a.label} (${a.device})`).join(", "))}<br>${esc(flow.targetLabel)}</p>
+<p class="meta">${clock(flow.durationSec)} · ${flow.steps.length} steps${flow.narrated ? " · narrated" : ""} · ${esc(flow.actors.map((a) => `${a.label} (${a.device})`).join(", "))}<br>${esc(flow.targetLabel)}</p>
 <p class="links"><a href="${esc(`${flow.id}/${flow.video}`)}">Video (MP4)</a><a href="${esc(`${flow.id}/${flow.pdf}`)}">Steps (PDF)</a><a href="${esc(`${flow.id}/steps.html`)}">Steps (web page)</a></p>
 <ol>${flow.steps.map((step) => `<li><button type="button" data-t="${step.atSec.toFixed(2)}">${clock(step.atSec)}</button>${esc(step.caption)}</li>`).join("")}</ol></div></article>`;
   // The settings' roles in their order, then any role only an older recording still names.

@@ -27,6 +27,7 @@ import { compose } from "./compose.js";
 import type { Device } from "./devices.js";
 import { writeIndex } from "./index-page.js";
 import { resolveSettings, type Resolved, type Settings } from "./settings.js";
+import { narrate, VOICE_LEAD, VOICE_TAIL, type VoiceClip } from "./voice.js";
 
 export interface FlowSpec<Role extends string = string> {
   /** Folder and file name of the output: lower-case words joined by hyphens. */
@@ -45,6 +46,8 @@ export interface StepOptions {
   show?: Actor[];
   /** How long the result stays on screen before the next step, ms. */
   hold?: number;
+  /** What the voiceover says for this step. Default: the caption. `false` keeps the step silent. */
+  say?: string | false;
 }
 
 export interface StepRecord {
@@ -55,6 +58,8 @@ export interface StepRecord {
   /** Slugs of the actors the step is about. */
   shown: string[];
   shots: { actor: string; file: string }[];
+  /** The step's spoken line, when the voiceover is on. */
+  voice: VoiceClip | null;
 }
 
 export interface ActorRecord {
@@ -70,6 +75,8 @@ export interface FlowRun {
   spec: FlowSpec;
   actors: ActorRecord[];
   steps: StepRecord[];
+  /** The title, spoken over the title card, when the voiceover is on. */
+  introVoice: VoiceClip | null;
   /** Wall-clock ranges left out of the video (set-up before the first step, `offCamera`). */
   cuts: [number, number][];
   endedAt: number;
@@ -222,13 +229,23 @@ export class Walk {
     if (this.actors.length === 0) throw new Error(`${this.spec.id}: open an actor before the first step`);
     this.inStep = true;
     for (const actor of this.actors) actor.touched = false;
-    const record: StepRecord = { caption, note: options.note ?? null, startedAt: Date.now(), shown: [], shots: [] };
+    // The line is fetched before the caption goes up, and that wait is left out of the video.
+    const say = options.say ?? caption;
+    let voice: VoiceClip | null = null;
+    if (this.kit.voiceover && say) {
+      const from = Date.now();
+      voice = await narrate(this.kit, say);
+      if (this.steps.length > 0) this.cuts.push([from, Date.now()]);
+    }
+    const record: StepRecord = { caption, note: options.note ?? null, startedAt: Date.now(), shown: [], shots: [], voice };
     this.steps.push(record);
     try {
       await test.step(caption, async () => {
         await sleep(STEP_LEAD);
         await body();
         await sleep(options.hold ?? STEP_HOLD);
+        // The next caption waits for this one's line to finish.
+        if (voice) await sleep(Math.max(0, record.startedAt + (VOICE_LEAD + voice.seconds + VOICE_TAIL) * 1000 - Date.now()));
         const driven = this.actors.filter((actor) => actor.touched);
         const shown = options.show ?? (driven.length > 0 ? driven : this.actors);
         const number = String(this.steps.length).padStart(2, "0");
@@ -281,6 +298,7 @@ export class Walk {
     return {
       spec: this.spec,
       actors: records,
+      introVoice: this.kit.voiceover ? await narrate(this.kit, this.spec.title) : null,
       steps: this.steps,
       cuts: [[started, first], ...this.cuts],
       endedAt,

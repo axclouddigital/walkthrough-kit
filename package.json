@@ -1,6 +1,6 @@
 {
   "name": "walkthrough-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Records a web app's flows with Playwright at watching speed and composes each into a captioned MP4, a PDF of the steps and an index page.",
   "type": "module",

@@ -97,6 +97,23 @@ walkthrough({ id: "customer-order", title: "Order from one truck", role: "Custom
 - Nothing else may use the run's server while it records. Give a run its own port.
 - After recording, look at frames of the video and pages of the PDF; that is where caption and scrolling problems show.
 
+## Voiceover
+
+Off unless the settings carry `voiceover`, so the project switches it with an env variable:
+
+```ts
+voiceover: process.env.WALK_VOICE === "1"
+  ? { apiKey: process.env.ELEVENLABS_API_KEY ?? "", voiceId: "IKne3meq5aSn9XLyUdCD" }
+  : undefined,
+```
+
+- ElevenLabs speaks the flow's title over the title card and each step's caption as it goes up. `say: "…"` in a step's options gives the voice a different line from the caption; `say: false` keeps that step silent.
+- A step lasts at least as long as its line, so a narrated video runs longer than the silent one. The title card also stays up until the title has been said.
+- Clips are kept in `node_modules/.cache/walkthrough-kit/voice` (`cacheDir` moves it), named by voice, model and text: a re-recording only pays for lines that changed. `npm ci` empties that folder.
+- A run replaces the flow's MP4 either way: the last run decides whether it has sound. The index page marks narrated flows.
+- Other options: `modelId` (default `eleven_multilingual_v2`) and `voiceSettings` (ElevenLabs `voice_settings`).
+- The key needs only the Text to Speech permission. `bin/with-voice-key <command>` runs a command with `WALK_VOICE=1` and the key from Daniel's Bitwarden, without a phone approval; a project's script calls it by absolute path: `"walkthrough:voice": "\"$HOME/Projects/walkthrough-kit/bin/with-voice-key\" npm run walkthrough:run --"`.
+
 ## Output
 
 `<outDir>/index.html`, and per flow `<id>/<id>.mp4`, `<id>.pdf`, `steps.html`, `steps/*.jpg`, `poster.jpg` and `flow.json`. A run of some flows keeps the others listed.

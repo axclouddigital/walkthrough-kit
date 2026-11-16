@@ -76,11 +76,27 @@ export interface Settings<Role extends string = string> {
   beforeFlow?: () => Promise<void>;
   /** The command the index page says regenerates it: "npm run walkthrough". */
   regenerate?: string;
+  /** A spoken track on the videos. Leave out for silent videos; the project decides when to pass it (an env switch). */
+  voiceover?: Voiceover;
+}
+
+/** ElevenLabs text to speech. Each step's caption is spoken unless the step sets `say`. */
+export interface Voiceover {
+  apiKey: string;
+  /** The voice's id from the ElevenLabs voice library. */
+  voiceId: string;
+  /** Default: `eleven_multilingual_v2`. */
+  modelId?: string;
+  /** ElevenLabs `voice_settings` (stability, similarity_boost, speed, …), sent as given. */
+  voiceSettings?: Record<string, number | boolean>;
+  /** Where clips are kept between runs. Default: `node_modules/.cache/walkthrough-kit/voice`. */
+  cacheDir?: string;
 }
 
 export type Resolved = Required<Pick<Settings, "colorScheme" | "headless" | "devices">> &
-  Omit<Settings, "colorScheme" | "headless" | "devices" | "brand"> & {
+  Omit<Settings, "colorScheme" | "headless" | "devices" | "brand" | "voiceover"> & {
     brand: Omit<Brand, "palette" | "fonts"> & { palette: Palette; fonts: { heading: FontFile; body: FontFile } | null };
+    voiceover: (Voiceover & Required<Pick<Voiceover, "modelId" | "cacheDir">>) | null;
   };
 
 const DEFAULT_PALETTE: Palette = {
@@ -101,6 +117,8 @@ export function resolveSettings(settings: Settings): Resolved {
     if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`walkthrough-kit: palette.${name} must be a six-digit hex colour, got "${value}"`);
   }
   if (settings.roles.length === 0) throw new Error("walkthrough-kit: settings.roles is empty");
+  const voice = settings.voiceover;
+  if (voice && (!voice.apiKey || !voice.voiceId)) throw new Error("walkthrough-kit: settings.voiceover needs an apiKey and a voiceId");
   const fonts = settings.brand.fonts;
   return {
     ...settings,
@@ -117,5 +135,8 @@ export function resolveSettings(settings: Settings): Resolved {
         ? { heading: { ...fonts.heading, file: resolve(root, fonts.heading.file) }, body: { ...fonts.body, file: resolve(root, fonts.body.file) } }
         : null,
     },
+    voiceover: voice
+      ? { ...voice, modelId: voice.modelId ?? "eleven_multilingual_v2", cacheDir: resolve(root, voice.cacheDir ?? "node_modules/.cache/walkthrough-kit/voice") }
+      : null,
   };
 }

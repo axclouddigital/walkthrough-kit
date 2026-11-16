@@ -1,0 +1,14 @@
+#!/bin/bash
+# Runs a command with the voiceover switched on: WALK_VOICE=1 and ELEVENLABS_API_KEY taken from
+# Bitwarden ("ElevenLabs API key (walkthrough-kit)") through bw-approve.
+#
+#   ~/Projects/walkthrough-kit/bin/with-voice-key npm run walkthrough:run -- -g story-one-order
+#
+# This file holds a standing grant for that item, so it runs without a phone approval when called
+# by its absolute path. The grant is pinned to this file's contents: after any edit, renew it with
+#   bwreq admin grant --item 06fa72cf-ea2f-418c-8953-b504002d0ebb --fields password --script "$HOME/Projects/walkthrough-kit/bin/with-voice-key"
+if [ $# -eq 0 ]; then
+  echo "usage: with-voice-key <command> [args...]" >&2
+  exit 64
+fi
+/usr/local/bin/bwreq run --id-env ELEVENLABS_API_KEY=password:06fa72cf-ea2f-418c-8953-b504002d0ebb --reason "walkthrough-kit voiceover" -- env WALK_VOICE=1 "$@"
