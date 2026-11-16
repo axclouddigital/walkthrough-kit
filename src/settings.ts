@@ -80,11 +80,17 @@ export interface Settings<Role extends string = string> {
   voiceover?: Voiceover;
 }
 
+/**
+ * The voice used when `voiceover.voiceId` is left out: "Paul - Australian Professional Presenter", from
+ * ElevenLabs' voice library. Its owner can withdraw it, and then this needs a new id.
+ */
+export const DEFAULT_VOICE_ID = "WLKp2jV6nrS8aMkPPDRO";
+
 /** ElevenLabs text to speech. Each step's caption is spoken unless the step sets `say`. */
 export interface Voiceover {
   apiKey: string;
-  /** The voice's id from the ElevenLabs voice library. */
-  voiceId: string;
+  /** The voice's id from the ElevenLabs voice library. Default: `DEFAULT_VOICE_ID` (Paul). */
+  voiceId?: string;
   /** Default: `eleven_multilingual_v2`. */
   modelId?: string;
   /** ElevenLabs `voice_settings` (stability, similarity_boost, speed, …), sent as given. */
@@ -96,7 +102,7 @@ export interface Voiceover {
 export type Resolved = Required<Pick<Settings, "colorScheme" | "headless" | "devices">> &
   Omit<Settings, "colorScheme" | "headless" | "devices" | "brand" | "voiceover"> & {
     brand: Omit<Brand, "palette" | "fonts"> & { palette: Palette; fonts: { heading: FontFile; body: FontFile } | null };
-    voiceover: (Voiceover & Required<Pick<Voiceover, "modelId" | "cacheDir">>) | null;
+    voiceover: (Voiceover & Required<Pick<Voiceover, "voiceId" | "modelId" | "cacheDir">>) | null;
   };
 
 const DEFAULT_PALETTE: Palette = {
@@ -118,7 +124,7 @@ export function resolveSettings(settings: Settings): Resolved {
   }
   if (settings.roles.length === 0) throw new Error("walkthrough-kit: settings.roles is empty");
   const voice = settings.voiceover;
-  if (voice && (!voice.apiKey || !voice.voiceId)) throw new Error("walkthrough-kit: settings.voiceover needs an apiKey and a voiceId");
+  if (voice && !voice.apiKey) throw new Error("walkthrough-kit: settings.voiceover needs an apiKey");
   const fonts = settings.brand.fonts;
   return {
     ...settings,
@@ -136,7 +142,12 @@ export function resolveSettings(settings: Settings): Resolved {
         : null,
     },
     voiceover: voice
-      ? { ...voice, modelId: voice.modelId ?? "eleven_multilingual_v2", cacheDir: resolve(root, voice.cacheDir ?? "node_modules/.cache/walkthrough-kit/voice") }
+      ? {
+          ...voice,
+          voiceId: voice.voiceId || DEFAULT_VOICE_ID,
+          modelId: voice.modelId ?? "eleven_multilingual_v2",
+          cacheDir: resolve(root, voice.cacheDir ?? "node_modules/.cache/walkthrough-kit/voice"),
+        }
       : null,
   };
 }

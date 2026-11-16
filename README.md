@@ -103,7 +103,7 @@ Off unless the settings carry `voiceover`, so the project switches it with an en
 
 ```ts
 voiceover: process.env.WALK_VOICE === "1"
-  ? { apiKey: process.env.ELEVENLABS_API_KEY ?? "", voiceId: "IKne3meq5aSn9XLyUdCD" }
+  ? { apiKey: process.env.ELEVENLABS_API_KEY ?? "" }
   : undefined,
 ```
 
@@ -111,6 +111,7 @@ voiceover: process.env.WALK_VOICE === "1"
 - A step lasts at least as long as its line, so a narrated video runs longer than the silent one. The title card also stays up until the title has been said.
 - Clips are kept in `node_modules/.cache/walkthrough-kit/voice` (`cacheDir` moves it), named by voice, model and text: a re-recording only pays for lines that changed. `npm ci` empties that folder.
 - A run replaces the flow's MP4 either way: the last run decides whether it has sound. The index page marks narrated flows.
+- The voice is "Paul - Australian Professional Presenter" (`DEFAULT_VOICE_ID`) unless `voiceId` names another from the ElevenLabs voice library.
 - Other options: `modelId` (default `eleven_multilingual_v2`) and `voiceSettings` (ElevenLabs `voice_settings`).
 - The key needs only the Text to Speech permission. `bin/with-voice-key <command>` runs a command with `WALK_VOICE=1` and the key from Daniel's Bitwarden, without a phone approval; a project's script calls it by absolute path: `"walkthrough:voice": "\"$HOME/Projects/walkthrough-kit/bin/with-voice-key\" npm run walkthrough:run --"`.
 
