@@ -90,7 +90,7 @@ walkthrough({ id: "customer-order", title: "Order from one truck", role: "Custom
 
 - An actor is one recorded screen. Open every actor before the first step; whatever happens before the first step is cut from the video. `walk.offCamera(…)` cuts set-up between steps.
 - Drive the screen with `actor.tap`, `actor.type`, `actor.scrollTo`, `actor.goto` and `actor.pause`: they move at watching speed and show where the tap lands. `actor.page` is the Playwright page, for locators and for waiting; a bare `page.click` is too fast to follow.
-- A step is one caption: what the person does or sees, in plain words (clamped to two lines, one with a `note`). After its body the result holds for a moment, then the step's screenshot is taken of the actors it drove. `show: [a, b]` or `actor.watch()` names a screen that changes on its own.
+- A step is one caption: what the person does, in plain words, starting with a verb ("Scan the card on the table to open the album"), with no named characters and no personal pronouns (clamped to two lines, one with a `note`). A step where something happens on its own names the role in the present tense ("The photographer's group shots land at the top"). Notes follow the same rule. After its body the result holds for a moment, then the step's screenshot is taken of the actors it drove. `show: [a, b]` or `actor.watch()` names a screen that changes on its own.
 - Wait on what the app shows, never with sleeps; `actor.pause` is only reading time.
 - A recording is the viewport at CSS size (WebKit pads rather than scales anything larger), shown 1:1 where the screens fit side by side.
 - Keep one tab per actor: a link that opens a new tab isn't in that actor's video.
